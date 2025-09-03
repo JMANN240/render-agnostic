@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 
-use ab_glyph::FontVec;
+use ab_glyph::FontArc;
 use anchor2d::{Anchor2D, HorizontalAnchor, VerticalAnchorContext, VerticalAnchorValue};
 use glam::{DVec2, IVec2, dvec2, ivec2};
 use image::{
@@ -23,7 +23,7 @@ fn srgba_to_rgba8(color: Srgba) -> Rgba<u8> {
     Rgba([red, green, blue, alpha])
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub struct ImageRenderer {
     width: u32,
     height: u32,
@@ -31,6 +31,7 @@ pub struct ImageRenderer {
     scale: f64,
     scaling_target: DVec2,
     supersampling: u32,
+    font: FontArc,
 }
 
 impl ImageRenderer {
@@ -40,6 +41,7 @@ impl ImageRenderer {
         scale: f64,
         scaling_target: DVec2,
         supersampling: u32,
+        font: FontArc,
     ) -> Self {
         Self {
             width,
@@ -48,7 +50,16 @@ impl ImageRenderer {
             scale,
             scaling_target,
             supersampling,
+            font,
         }
+    }
+
+    pub fn get_font(&self) -> &FontArc {
+        &self.font
+    }
+
+    pub fn set_font(&mut self, font: FontArc) {
+        self.font = font;
     }
 
     fn get_supersampled_width(&self) -> u32 {
@@ -77,22 +88,24 @@ impl ImageRenderer {
         self.image = self.transparent();
     }
 
-    pub fn get_image(&self) -> RgbaImage {
-        let mut image = self.black();
+    pub fn get_image(&self) -> &RgbaImage {
+        &self.image
+    }
 
+    pub fn render_image_onto(&self, mut image: RgbaImage) -> RgbaImage {
         overlay(&mut image, &self.image, 0, 0);
 
         resize(&image, self.width, self.height, FilterType::Lanczos3)
     }
 
-    fn transparent(&self) -> RgbaImage {
+    pub fn transparent(&self) -> RgbaImage {
         RgbaImage::new(
             self.get_supersampled_width(),
             self.get_supersampled_height(),
         )
     }
 
-    fn black(&self) -> RgbaImage {
+    pub fn black(&self) -> RgbaImage {
         RgbaImage::from_par_fn(
             self.get_supersampled_width(),
             self.get_supersampled_height(),
@@ -102,8 +115,6 @@ impl ImageRenderer {
 }
 
 impl Renderer for ImageRenderer {
-    type Font = FontVec;
-
     fn render_line(&mut self, start: DVec2, end: DVec2, thickness: f64, color: Srgba) {
         let thickness = thickness * self.scale * self.supersampling as f64;
 
@@ -189,12 +200,11 @@ impl Renderer for ImageRenderer {
         anchor: Anchor2D,
         size: f64,
         color: Srgba,
-        font: Self::Font,
     ) {
         let position = self.map_dvec2(position);
         let size = size * self.scale * self.supersampling as f64;
 
-        let (text_width, _) = text_size(size as f32, &font, text);
+        let (text_width, _) = text_size(size as f32, &self.font, text);
 
         let x = match anchor.get_horizontal() {
             HorizontalAnchor::Left => position.x,
@@ -220,7 +230,7 @@ impl Renderer for ImageRenderer {
             x as i32,
             y as i32,
             size as f32,
-            &font,
+            &self.font,
             text,
         );
     }
@@ -325,6 +335,7 @@ impl Renderer for ImageRenderer {
             self.scale,
             self.scaling_target,
             self.supersampling,
+            self.font.clone(),
         );
 
         rectangle_renderer.render_rectangle(
@@ -429,6 +440,7 @@ impl Renderer for ImageRenderer {
             self.scale,
             self.scaling_target,
             self.supersampling,
+            self.font.clone(),
         );
 
         triangle_renderer.render_equilateral_triangle(

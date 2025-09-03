@@ -13,12 +13,26 @@ fn srgba_to_color(srgba: Srgba) -> Color {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy)]
-pub struct MacroquadRenderer;
+#[derive(Debug, Default, Clone)]
+pub struct MacroquadRenderer {
+    font: Option<Font>,
+}
+
+impl MacroquadRenderer {
+    pub fn new(font: Option<Font>) -> Self {
+        Self { font }
+    }
+
+    pub fn get_font(&self) -> Option<&Font> {
+        self.font.as_ref()
+    }
+
+    pub fn set_font(&mut self, font: Option<Font>) {
+        self.font = font;
+    }
+}
 
 impl Renderer for MacroquadRenderer {
-    type Font = Option<Font>;
-
     fn render_line(
         &mut self,
         start: ::glam::DVec2,
@@ -89,9 +103,8 @@ impl Renderer for MacroquadRenderer {
         anchor: Anchor2D,
         size: f64,
         color: Srgba,
-        font: Self::Font,
     ) {
-        let measurement = measure_text(text, font.as_ref(), size as u16, 1.0);
+        let measurement = measure_text(text, self.font.as_ref(), size as u16, 1.0);
 
         let x = match anchor.get_horizontal() {
             HorizontalAnchor::Left => position.x,
@@ -118,7 +131,7 @@ impl Renderer for MacroquadRenderer {
             x as f32,
             y as f32,
             TextParams {
-                font: font.as_ref(),
+                font: self.font.as_ref(),
                 font_size: size as u16,
                 color: srgba_to_color(color),
                 ..TextParams::default()

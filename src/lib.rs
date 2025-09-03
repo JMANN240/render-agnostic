@@ -5,8 +5,6 @@ use palette::Srgba;
 pub mod renderers;
 
 pub trait Renderer {
-    type Font;
-
     fn render_line(&mut self, start: DVec2, end: DVec2, thickness: f64, color: Srgba);
     fn render_circle(&mut self, position: DVec2, radius: f64, color: Srgba);
     fn render_circle_lines(&mut self, position: DVec2, radius: f64, thickness: f64, color: Srgba);
@@ -28,7 +26,6 @@ pub trait Renderer {
         anchor: Anchor2D,
         size: f64,
         color: Srgba,
-        font: Self::Font,
     );
 
     fn render_rectangle(

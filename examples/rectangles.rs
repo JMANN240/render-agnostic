@@ -1,12 +1,19 @@
 use std::f64::consts::TAU;
 
+use ab_glyph::FontArc;
 use glam::DVec2;
 use palette::Srgba;
 use render_agnostic::{Renderer, renderers::image::ImageRenderer};
 
-#[macroquad::main("")]
-async fn main() {
-    let mut image_renderer = ImageRenderer::new(128, 128, 1.0, DVec2::ZERO, 1);
+fn main() {
+    let mut image_renderer = ImageRenderer::new(
+        128,
+        128,
+        1.0,
+        DVec2::ZERO,
+        1,
+        FontArc::try_from_slice(include_bytes!("roboto.ttf")).unwrap(),
+    );
 
     image_renderer.render_rectangle_lines(
         DVec2::splat(64.0),
@@ -27,5 +34,8 @@ async fn main() {
         Srgba::new(0.5, 0.5, 0.5, 1.0),
     );
 
-    image_renderer.get_image().save("rectangles.png").unwrap();
+    image_renderer
+        .render_image_onto(image_renderer.black())
+        .save("rectangles.png")
+        .unwrap();
 }

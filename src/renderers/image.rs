@@ -130,12 +130,20 @@ impl Renderer for ImageRenderer {
         let p3 = mapped_end - normal * offset;
         let p4 = mapped_end + normal * offset;
 
-        let points = vec![
+        let mut points = vec![
             Point::new(p1.x.round() as i32, p1.y.round() as i32),
             Point::new(p2.x.round() as i32, p2.y.round() as i32),
             Point::new(p3.x.round() as i32, p3.y.round() as i32),
             Point::new(p4.x.round() as i32, p4.y.round() as i32),
         ];
+
+        while points.first().is_some_and(|first_point| {
+            points
+                .last()
+                .is_some_and(|last_point| first_point == last_point)
+        }) {
+            points.remove(points.len() - 1);
+        }
 
         draw_polygon_mut(&mut self.image, &points, srgba_to_rgba8(color));
     }
@@ -268,16 +276,22 @@ impl Renderer for ImageRenderer {
         let q3 = position + DVec2::from_angle(theta3 + rotation) * p3.length();
         let q4 = position + DVec2::from_angle(theta4 + rotation) * p4.length();
 
-        draw_polygon_mut(
-            &mut self.image,
-            &[
-                Point::new(q1.x.round() as i32, q1.y.round() as i32),
-                Point::new(q2.x.round() as i32, q2.y.round() as i32),
-                Point::new(q3.x.round() as i32, q3.y.round() as i32),
-                Point::new(q4.x.round() as i32, q4.y.round() as i32),
-            ],
-            srgba_to_rgba8(color),
-        );
+        let mut points = vec![
+            Point::new(q1.x.round() as i32, q1.y.round() as i32),
+            Point::new(q2.x.round() as i32, q2.y.round() as i32),
+            Point::new(q3.x.round() as i32, q3.y.round() as i32),
+            Point::new(q4.x.round() as i32, q4.y.round() as i32),
+        ];
+
+        while points.first().is_some_and(|first_point| {
+            points
+                .last()
+                .is_some_and(|last_point| first_point == last_point)
+        }) {
+            points.remove(points.len() - 1);
+        }
+
+        draw_polygon_mut(&mut self.image, &points, srgba_to_rgba8(color));
     }
 
     fn render_rectangle_lines(
@@ -381,14 +395,20 @@ impl Renderer for ImageRenderer {
             .map(|i| position + radius * DVec2::from_angle(i as f64 * 2.0 * PI / 3.0 + rotation))
             .collect::<Vec<DVec2>>();
 
-        draw_polygon_mut(
-            &mut self.image,
-            &points
-                .iter()
-                .map(|point| Point::new(point.x.round() as i32, point.y.round() as i32))
-                .collect::<Vec<Point<i32>>>(),
-            srgba_to_rgba8(color),
-        );
+        let mut points = points
+            .into_iter()
+            .map(|point| Point::new(point.x.round() as i32, point.y.round() as i32))
+            .collect::<Vec<Point<i32>>>();
+
+        while points.first().is_some_and(|first_point| {
+            points
+                .last()
+                .is_some_and(|last_point| first_point == last_point)
+        }) {
+            points.remove(points.len() - 1);
+        }
+
+        draw_polygon_mut(&mut self.image, &points, srgba_to_rgba8(color));
     }
 
     fn render_equilateral_triangle_lines(

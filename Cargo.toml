@@ -2,7 +2,7 @@
 name = "render-agnostic"
 description = "A backend-agnostic 2D rendering library"
 license = "MIT OR Apache-2.0"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 repository = "https://github.com/JMANN240/render-agnostic"
 
@@ -17,6 +17,6 @@ palette = "0.7.6"
 particula-rs = "0.1.5"
 
 [features]
-default = ["image", "macroquad"]
+default = []
 image = ["dep:image", "dep:imageproc", "dep:ab_glyph"]
 macroquad = ["dep:macroquad"]

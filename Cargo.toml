@@ -17,7 +17,7 @@ palette = "0.7.6"
 particula-rs = "0.1.5"
 
 [features]
-default = ["image", "macroquad"]
+default = []
 image = ["dep:image", "dep:imageproc", "dep:ab_glyph"]
 macroquad = ["dep:macroquad"]
 

@@ -379,8 +379,8 @@ impl Renderer for ImageRenderer {
         overlay(
             &mut self.image,
             &rectangle_renderer.image,
-            (position.x - renderer_width as f64 / 2.0).floor() as i64,
-            (position.y - renderer_height as f64 / 2.0).floor() as i64,
+            0,
+            0,
         );
     }
 

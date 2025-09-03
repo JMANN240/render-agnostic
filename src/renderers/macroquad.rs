@@ -4,7 +4,7 @@ use palette::Srgba;
 
 use crate::Renderer;
 
-pub fn srgba_to_color(srgba: Srgba) -> Color {
+fn srgba_to_color(srgba: Srgba) -> Color {
     Color {
         r: srgba.red,
         g: srgba.green,
@@ -19,7 +19,13 @@ pub struct MacroquadRenderer;
 impl Renderer for MacroquadRenderer {
     type Font = Option<Font>;
 
-    fn render_line(&mut self, start: ::glam::DVec2, end: ::glam::DVec2, thickness: f64, color: Srgba) {
+    fn render_line(
+        &mut self,
+        start: ::glam::DVec2,
+        end: ::glam::DVec2,
+        thickness: f64,
+        color: Srgba,
+    ) {
         draw_line(
             start.x as f32,
             start.y as f32,

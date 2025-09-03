@@ -1,7 +1,10 @@
 [package]
 name = "render-agnostic"
+description = "A backend-agnostic 2D rendering library"
+license = "MIT OR Apache-2.0"
 version = "0.1.0"
 edition = "2024"
+repository = "https://github.com/JMANN240/render-agnostic"
 
 [dependencies]
 ab_glyph = { version = "0.2.31", optional = true }

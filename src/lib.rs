@@ -2,11 +2,7 @@ use anchor2d::Anchor2D;
 use glam::DVec2;
 use palette::Srgba;
 
-#[cfg(feature = "macroquad")]
-pub mod macroquad;
-
-#[cfg(feature = "image")]
-pub mod image;
+pub mod renderers;
 
 pub trait Renderer {
     type Font;

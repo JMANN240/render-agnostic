@@ -2,22 +2,20 @@ use std::f64::consts::PI;
 
 use ab_glyph::FontVec;
 use anchor2d::{Anchor2D, HorizontalAnchor, VerticalAnchorContext, VerticalAnchorValue};
-use glam::{dvec2, ivec2, DVec2, IVec2};
+use glam::{DVec2, IVec2, dvec2, ivec2};
 use image::{
     Rgba, RgbaImage,
     imageops::{FilterType, overlay, resize},
 };
 use imageproc::{
-    drawing::{
-        draw_filled_circle_mut, draw_polygon_mut, draw_text_mut, text_size,
-    },
+    drawing::{draw_filled_circle_mut, draw_polygon_mut, draw_text_mut, text_size},
     point::Point,
 };
 use palette::Srgba;
 
 use crate::Renderer;
 
-pub fn srgba_to_rgba8(color: Srgba) -> Rgba<u8> {
+fn srgba_to_rgba8(color: Srgba) -> Rgba<u8> {
     let red = (color.red * 255.0).round().clamp(0.0, 255.0) as u8;
     let green = (color.green * 255.0).round().clamp(0.0, 255.0) as u8;
     let blue = (color.blue * 255.0).round().clamp(0.0, 255.0) as u8;
@@ -181,7 +179,7 @@ impl Renderer for ImageRenderer {
         thickness: f64,
         color: Srgba,
     ) {
-        self.render_circle_lines(position, radius, thickness, color);
+        self.render_circle_lines(position, radius, thickness, color); //TODO
     }
 
     fn render_text(
@@ -215,24 +213,6 @@ impl Renderer for ImageRenderer {
             (VerticalAnchorContext::Graphics, VerticalAnchorValue::Top) => position.y,
             (VerticalAnchorContext::Math, VerticalAnchorValue::Top) => position.y - size / 1.25,
         };
-
-        for i in -1..=1 {
-            for j in -1..=1 {
-                if i != 0 || j != 0 {
-                    draw_text_mut(
-                        &mut self.image,
-                        Rgba([0, 0, 0, 1]),
-                        x as i32
-                            - (i as f64 * self.scale * self.supersampling as f64).round() as i32,
-                        y as i32
-                            - (j as f64 * self.scale * self.supersampling as f64).round() as i32,
-                        size as f32,
-                        &font,
-                        text,
-                    );
-                }
-            }
-        }
 
         draw_text_mut(
             &mut self.image,
@@ -412,12 +392,31 @@ impl Renderer for ImageRenderer {
             .map(|i| position + radius * DVec2::from_angle(i as f64 * 2.0 * PI / 3.0 + rotation))
             .collect::<Vec<DVec2>>();
 
-        let integer_points = points.iter().map(|point| point.floor().as_ivec2()).collect::<Vec<IVec2>>();
+        let integer_points = points
+            .iter()
+            .map(|point| point.floor().as_ivec2())
+            .collect::<Vec<IVec2>>();
 
-        let min_x = integer_points.iter().map(|integer_point| integer_point.x).min().expect("triangles have more than 0 points");
-        let max_x = integer_points.iter().map(|integer_point| integer_point.x).max().expect("triangles have more than 0 points");
-        let min_y = integer_points.iter().map(|integer_point| integer_point.y).min().expect("triangles have more than 0 points");
-        let max_y = integer_points.iter().map(|integer_point| integer_point.y).max().expect("triangles have more than 0 points");
+        let min_x = integer_points
+            .iter()
+            .map(|integer_point| integer_point.x)
+            .min()
+            .expect("triangles have more than 0 points");
+        let max_x = integer_points
+            .iter()
+            .map(|integer_point| integer_point.x)
+            .max()
+            .expect("triangles have more than 0 points");
+        let min_y = integer_points
+            .iter()
+            .map(|integer_point| integer_point.y)
+            .min()
+            .expect("triangles have more than 0 points");
+        let max_y = integer_points
+            .iter()
+            .map(|integer_point| integer_point.y)
+            .max()
+            .expect("triangles have more than 0 points");
 
         let min_point = ivec2(min_x, min_y);
 

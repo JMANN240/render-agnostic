@@ -378,8 +378,8 @@ impl Renderer for ImageRenderer {
         let mut rectangle_renderer = ImageRenderer::new(
             renderer_width as u32,
             renderer_height as u32,
-            self.scale,
-            self.scaling_target,
+            1.0,
+            DVec2::ZERO,
             self.supersampling,
             self.font.clone(),
         );

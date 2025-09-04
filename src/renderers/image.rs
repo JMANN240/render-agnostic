@@ -1,4 +1,4 @@
-use std::f64::consts::PI;
+use std::f64::consts::{FRAC_PI_2, PI};
 
 use ab_glyph::FontArc;
 use anchor2d::{Anchor2D, HorizontalAnchor, VerticalAnchorContext, VerticalAnchorValue};
@@ -8,10 +8,14 @@ use image::{
     imageops::{FilterType, overlay, resize},
 };
 use imageproc::{
-    drawing::{draw_filled_circle_mut, draw_polygon_mut, draw_text_mut, text_size},
+    drawing::{
+        draw_filled_circle_mut, draw_filled_rect_mut, draw_polygon_mut, draw_text_mut, text_size,
+    },
     point::Point,
+    rect::Rect,
 };
-use palette::{num::Round, Srgba};
+use itertools::Itertools;
+use palette::Srgba;
 
 use crate::Renderer;
 
@@ -25,8 +29,8 @@ fn srgba_to_rgba8(color: Srgba) -> Rgba<u8> {
 
 #[derive(Clone)]
 pub struct ImageRenderer {
-    width: u32,
-    height: u32,
+    virtual_width: u32,
+    virtual_height: u32,
     image: RgbaImage,
     scale: f64,
     scaling_target: DVec2,
@@ -44,8 +48,8 @@ impl ImageRenderer {
         font: FontArc,
     ) -> Self {
         Self {
-            width,
-            height,
+            virtual_width: width,
+            virtual_height: height,
             image: RgbaImage::new(width * supersampling, height * supersampling),
             scale,
             scaling_target,
@@ -63,11 +67,15 @@ impl ImageRenderer {
     }
 
     fn get_supersampled_width(&self) -> u32 {
-        self.width * self.supersampling
+        self.virtual_width * self.supersampling
     }
 
     fn get_supersampled_height(&self) -> u32 {
-        self.height * self.supersampling
+        self.virtual_height * self.supersampling
+    }
+
+    fn map_value(&self, value: f64) -> f64 {
+        value * self.scale * self.supersampling as f64
     }
 
     fn map_x(&self, x: f64) -> f64 {
@@ -95,7 +103,12 @@ impl ImageRenderer {
     pub fn render_image_onto(&self, mut image: RgbaImage) -> RgbaImage {
         overlay(&mut image, &self.image, 0, 0);
 
-        resize(&image, self.width, self.height, FilterType::Lanczos3)
+        resize(
+            &image,
+            self.virtual_width,
+            self.virtual_height,
+            FilterType::Lanczos3,
+        )
     }
 
     pub fn transparent(&self) -> RgbaImage {
@@ -106,63 +119,105 @@ impl ImageRenderer {
     }
 
     pub fn black(&self) -> RgbaImage {
-        RgbaImage::from_par_fn(
+        RgbaImage::from_pixel(
             self.get_supersampled_width(),
             self.get_supersampled_height(),
-            |_, _| Rgba([0, 0, 0, 255]),
+            Rgba([0, 0, 0, 255]),
         )
     }
 
-    fn red(&self) -> RgbaImage {
-        RgbaImage::from_par_fn(
+    fn magenta(&self) -> RgbaImage {
+        RgbaImage::from_pixel(
             self.get_supersampled_width(),
             self.get_supersampled_height(),
-            |_, _| Rgba([255, 0, 0, 255]),
+            Rgba([255, 0, 255, 255]),
         )
+    }
+
+    fn get_base_points(&self, position: DVec2, width: f64, height: f64) -> Vec<DVec2> {
+        vec![
+            position,
+            position + DVec2::X * width,
+            position + DVec2::X * width + DVec2::Y * height,
+            position + DVec2::Y * height,
+        ]
+    }
+
+    fn get_offset_vec(&self, width: f64, height: f64, offset: DVec2) -> DVec2 {
+        let offset_width = width * offset.x;
+        let offset_height = height * offset.y;
+
+        dvec2(offset_width, offset_height)
+    }
+
+    fn get_offset_points(&self, points: &[DVec2], offset_vec: DVec2) -> Vec<DVec2> {
+        points
+            .iter()
+            .copied()
+            .map(|base_point| base_point - offset_vec)
+            .collect::<Vec<DVec2>>()
+    }
+
+    fn get_rotated_points(&self, points: &[DVec2], axis: DVec2, rotation: f64) -> Vec<DVec2> {
+        points
+            .iter()
+            .copied()
+            .map(|point| rotate_point_around(point, axis, rotation))
+            .collect::<Vec<DVec2>>()
+    }
+
+    fn get_unique_integer_points(&self, points: &[DVec2]) -> Vec<IVec2> {
+        points
+            .iter()
+            .map(|point| point.round().as_ivec2())
+            .unique()
+            .collect::<Vec<IVec2>>()
     }
 }
 
 impl Renderer for ImageRenderer {
+    fn render_point(&mut self, position: DVec2, color: Srgba) {
+        let position = self.map_dvec2(position);
+        let width = self.map_value(1.0);
+        let height = self.map_value(1.0);
+
+        let integer_position = position.round().as_ivec2();
+
+        draw_filled_rect_mut(
+            &mut self.image,
+            Rect::at(integer_position.x, integer_position.y).of_size(width.round() as u32, height.round() as u32),
+            srgba_to_rgba8(color),
+        );
+    }
+
     fn render_line(&mut self, start: DVec2, end: DVec2, thickness: f64, color: Srgba) {
-        let thickness = thickness * self.scale * self.supersampling as f64;
+        let start = self.map_dvec2(start);
+        let end = self.map_dvec2(end);
 
-        let offset = (thickness / 2.0).round();
+        let thickness = self.map_value(thickness);
+        let offset = thickness / 2.0;
+        let normal = DVec2::from_angle((end - start).to_angle() + FRAC_PI_2);
 
-        let normal = DVec2::from_angle((end - start).to_angle() + PI / 2.0);
-
-        let mapped_start = self.map_dvec2(start);
-        let mapped_end = self.map_dvec2(end);
-
-        let p1 = mapped_start + normal * offset;
-        let p2 = mapped_start - normal * offset;
-        let p3 = mapped_end - normal * offset;
-        let p4 = mapped_end + normal * offset;
-
-        let mut points = vec![
-            Point::new(p1.x.round() as i32, p1.y.round() as i32),
-            Point::new(p2.x.round() as i32, p2.y.round() as i32),
-            Point::new(p3.x.round() as i32, p3.y.round() as i32),
-            Point::new(p4.x.round() as i32, p4.y.round() as i32),
+        let points = vec![
+            start + normal * offset,
+            start - normal * offset,
+            end - normal * offset,
+            end + normal * offset,
         ];
 
-        while points.len() > 1 && points.first().is_some_and(|first_point| {
-            points
-                .last()
-                .is_some_and(|last_point| first_point == last_point)
-        }) {
-            points.remove(points.len() - 1);
-        }
+        let integer_points = self
+            .get_unique_integer_points(&points)
+            .iter()
+            .map(|integer_point| Point::new(integer_point.x, integer_point.y))
+            .collect::<Vec<Point<i32>>>();
 
-        if points.len() == 1 {
-            let point = points.first().unwrap();
+        if integer_points.len() == 1 {
+            let integer_point = integer_points.first().unwrap();
 
-            if point.x >= 0 && point.y >= 0 && point.x < self.image.width() as i32 && point.y < self.image.height() as i32 {
-                self.image.put_pixel(point.x as u32, point.y as u32, srgba_to_rgba8(color));
-            }
+            self.render_point(dvec2(integer_point.x as f64, integer_point.y as f64), color);
         } else {
-            draw_polygon_mut(&mut self.image, &points, srgba_to_rgba8(color));
+            draw_polygon_mut(&mut self.image, &integer_points, srgba_to_rgba8(color));
         }
-
     }
 
     fn render_circle(&mut self, position: DVec2, radius: f64, color: Srgba) {
@@ -191,11 +246,7 @@ impl Renderer for ImageRenderer {
             self.font.clone(),
         );
 
-        circle_renderer.render_circle(
-            dvec2(radius, radius),
-            radius,
-            color,
-        );
+        circle_renderer.render_circle(dvec2(radius, radius), radius, color);
 
         circle_renderer.render_circle(
             dvec2(radius, radius),
@@ -274,61 +325,28 @@ impl Renderer for ImageRenderer {
         rotation: f64,
         color: Srgba,
     ) {
-        let width = (width - 1.0) * self.scale * self.supersampling as f64;
-        let height = (height - 1.0) * self.scale * self.supersampling as f64;
+        let position = self.map_dvec2(position);
+        let width = self.map_value(width) - 1.0;
+        let height = self.map_value(height) - 1.0;
 
-        let calculated_offset = dvec2(
-            width * offset.x,
-            height * offset.y,
-        );
+        let base_points = self.get_base_points(position, width, height);
+        let offset_vec = self.get_offset_vec(width, height, offset);
+        let offset_points = self.get_offset_points(&base_points, offset_vec);
+        let rotated_points = self.get_rotated_points(&offset_points, position, rotation);
 
-        let position = self.map_dvec2(position) - calculated_offset;
+        let integer_points = self
+            .get_unique_integer_points(&rotated_points)
+            .iter()
+            .map(|integer_point| Point::new(integer_point.x, integer_point.y))
+            .collect::<Vec<Point<i32>>>();
 
-        let axis = dvec2(
-            position.x + calculated_offset.x, // 4.5
-            position.y + calculated_offset.y, // 4.5
-        );
+        if integer_points.len() == 1 {
+            let integer_point = integer_points.first().unwrap();
 
-        let p1 = position; // 0.0,0.0
-        let p2 = p1 + DVec2::X * width; // 9.0,0.0
-        let p3 = p2 + DVec2::Y * height; // 9.0,9.0
-        let p4 = p3 - DVec2::X * width; // 0.0,9.0
-
-        let q1 = rotate_point_around(p1, axis, rotation); // 0.0,0.0
-        let q2 = rotate_point_around(p2, axis, rotation); // 9.0,0.0
-        let q3 = rotate_point_around(p3, axis, rotation); // 9.0,9.0
-        let q4 = rotate_point_around(p4, axis, rotation); // 0.0,9.0
-
-        let r1 = q1.round().as_ivec2(); // 0,0
-        let r2 = q2.round().as_ivec2(); // 9,0
-        let r3 = q3.round().as_ivec2(); // 9,9
-        let r4 = q4.round().as_ivec2(); // 0,9
-
-        let mut points = vec![
-            Point::new(r1.x, r1.y),
-            Point::new(r2.x, r2.y),
-            Point::new(r3.x, r3.y),
-            Point::new(r4.x, r4.y),
-        ];
-
-        while points.len() > 1 && points.first().is_some_and(|first_point| {
-            points
-                .last()
-                .is_some_and(|last_point| first_point == last_point)
-        }) {
-            points.remove(points.len() - 1);
-        }
-
-        if points.len() == 1 {
-            let point = points.first().unwrap();
-
-            if point.x >= 0 && point.y >= 0 && point.x < self.image.width() as i32 && point.y < self.image.height() as i32 {
-                self.image.put_pixel(point.x as u32, point.y as u32, srgba_to_rgba8(color));
-            }
+            self.render_point(dvec2(integer_point.x as f64, integer_point.y as f64), color);
         } else {
-            draw_polygon_mut(&mut self.image, &points, srgba_to_rgba8(color));
+            draw_polygon_mut(&mut self.image, &integer_points, srgba_to_rgba8(color));
         }
-
     }
 
     fn render_rectangle_lines(
@@ -341,36 +359,45 @@ impl Renderer for ImageRenderer {
         thickness: f64,
         color: Srgba,
     ) {
-        let adjusted_position = self.map_dvec2(position);
-        let adjusted_width = (width - 1.0) * self.scale * self.supersampling as f64;
-        let adjusted_height = (height - 1.0) * self.scale * self.supersampling as f64;
-        let adjusted_thickness = thickness * self.scale * self.supersampling as f64;
+        let position = self.map_dvec2(position);
+        let width = self.map_value(width) - 1.0;
+        let height = self.map_value(height) - 1.0;
+        let thickness = self.map_value(thickness);
 
-        let axis = dvec2(
-            adjusted_position.x + adjusted_width * offset.x, // 4.5
-            adjusted_position.y + adjusted_height * offset.y, // 4.5
-        );
+        let base_points = self.get_base_points(position, width, height);
+        let offset_vec = self.get_offset_vec(width, height, offset);
+        let offset_points = self.get_offset_points(&base_points, offset_vec);
+        let rotated_points = self.get_rotated_points(&offset_points, position, rotation);
 
-        let p1 = adjusted_position; // 0.0,0.0
-        let p2 = p1 + DVec2::X * adjusted_width; // 9.0,0.0
-        let p3 = p2 + DVec2::Y * adjusted_height; // 9.0,9.0
-        let p4 = p3 - DVec2::X * adjusted_width; // 0.0,9.0
+        let integer_points = self
+            .get_unique_integer_points(&rotated_points)
+            .iter()
+            .map(|integer_point| Point::new(integer_point.x, integer_point.y))
+            .collect::<Vec<Point<i32>>>();
 
-        let q1 = rotate_point_around(p1, axis, rotation); // 0.0,0.0
-        let q2 = rotate_point_around(p2, axis, rotation); // 9.0,0.0
-        let q3 = rotate_point_around(p3, axis, rotation); // 9.0,9.0
-        let q4 = rotate_point_around(p4, axis, rotation); // 0.0,9.0
+        let min_x = integer_points
+            .iter()
+            .map(|integer_point| integer_point.x)
+            .min()
+            .unwrap();
+        let max_x = integer_points
+            .iter()
+            .map(|integer_point| integer_point.x)
+            .max()
+            .unwrap();
 
-        let r1 = q1.round().as_ivec2(); // 0,0
-        let r2 = q2.round().as_ivec2(); // 9,0
-        let r3 = q3.round().as_ivec2(); // 9,9
-        let r4 = q4.round().as_ivec2(); // 0,9
+        let min_y = integer_points
+            .iter()
+            .map(|integer_point| integer_point.y)
+            .min()
+            .unwrap();
+        let max_y = integer_points
+            .iter()
+            .map(|integer_point| integer_point.y)
+            .max()
+            .unwrap();
 
-        let min_x = r1.x.min(r2.x).min(r3.x).min(r4.x);
-        let max_x = r1.x.max(r2.x).max(r3.x).max(r4.x);
-
-        let min_y = r1.y.min(r2.y).min(r3.y).min(r4.y);
-        let max_y = r1.y.max(r2.y).max(r3.y).max(r4.y);
+        let min_vec = ivec2(min_x, min_y).as_dvec2();
 
         let renderer_width = max_x - min_x + 1;
         let renderer_height = max_y - min_y + 1;
@@ -380,29 +407,25 @@ impl Renderer for ImageRenderer {
             renderer_height as u32,
             1.0,
             DVec2::ZERO,
-            self.supersampling,
+            1,
             self.font.clone(),
         );
 
         rectangle_renderer.render_rectangle(
-            dvec2(
-                (renderer_width as f64 / 2.0).floor(),
-                (renderer_height as f64 / 2.0).floor(),
-            ),
-            adjusted_width,
-            adjusted_height,
-            DVec2::splat(0.5),
+            position - min_vec,
+            width + 1.0,
+            height + 1.0,
+            offset,
             rotation,
             color,
         );
 
+        let midpoint = rotated_points.iter().copied().map(|rotated_point| rotated_point - min_vec).sum::<DVec2>() / 4.0;
+
         rectangle_renderer.render_rectangle(
-            dvec2(
-                (renderer_width as f64 / 2.0).floor(),
-                (renderer_height as f64 / 2.0).floor(),
-            ),
-            adjusted_width - 2.0 * adjusted_thickness,
-            adjusted_height - 2.0 * adjusted_thickness,
+            midpoint,
+            width + 1.0 - 2.0 * thickness,
+            height + 1.0 - 2.0 * thickness,
             DVec2::splat(0.5),
             rotation,
             Srgba::new(0.0, 0.0, 0.0, 0.0),
@@ -411,8 +434,8 @@ impl Renderer for ImageRenderer {
         overlay(
             &mut self.image,
             &rectangle_renderer.render_image_onto(rectangle_renderer.transparent()),
-            (min_x as f64 - (adjusted_width * offset.x).floor()) as i64,
-            (min_y as f64 - (adjusted_height * offset.y).floor()) as i64,
+            min_x as i64,
+            min_y as i64,
         );
     }
 
@@ -423,31 +446,25 @@ impl Renderer for ImageRenderer {
         rotation: f64,
         color: Srgba,
     ) {
+        let position = self.map_dvec2(position);
+        let radius = self.map_value(radius);
+
         let points = (0..3)
             .map(|i| position + radius * DVec2::from_angle(i as f64 * 2.0 * PI / 3.0 + rotation))
             .collect::<Vec<DVec2>>();
 
-        let mut points = points
-            .into_iter()
-            .map(|point| Point::new(point.x.round() as i32, point.y.round() as i32))
+        let integer_points = self
+            .get_unique_integer_points(&points)
+            .iter()
+            .map(|integer_point| Point::new(integer_point.x, integer_point.y))
             .collect::<Vec<Point<i32>>>();
 
-        while points.len() > 1 && points.first().is_some_and(|first_point| {
-            points
-                .last()
-                .is_some_and(|last_point| first_point == last_point)
-        }) {
-            points.remove(points.len() - 1);
-        }
+        if integer_points.len() == 1 {
+            let integer_point = integer_points.first().unwrap();
 
-        if points.len() == 1 {
-            let point = points.first().unwrap();
-
-            if point.x >= 0 && point.y >= 0 && point.x < self.image.width() as i32 && point.y < self.image.height() as i32 {
-                self.image.put_pixel(point.x as u32, point.y as u32, srgba_to_rgba8(color));
-            }
+            self.render_point(dvec2(integer_point.x as f64, integer_point.y as f64), color);
         } else {
-            draw_polygon_mut(&mut self.image, &points, srgba_to_rgba8(color));
+            draw_polygon_mut(&mut self.image, &integer_points, srgba_to_rgba8(color));
         }
     }
 
@@ -459,14 +476,19 @@ impl Renderer for ImageRenderer {
         thickness: f64,
         color: Srgba,
     ) {
+        let position = self.map_dvec2(position);
+        let radius = self.map_value(radius);
+        let thickness = self.map_value(thickness);
+
         let points = (0..3)
             .map(|i| position + radius * DVec2::from_angle(i as f64 * 2.0 * PI / 3.0 + rotation))
             .collect::<Vec<DVec2>>();
 
-        let integer_points = points
+        let integer_points = self
+            .get_unique_integer_points(&points)
             .iter()
-            .map(|point| point.floor().as_ivec2())
-            .collect::<Vec<IVec2>>();
+            .map(|integer_point| Point::new(integer_point.x, integer_point.y))
+            .collect::<Vec<Point<i32>>>();
 
         let min_x = integer_points
             .iter()
@@ -497,21 +519,21 @@ impl Renderer for ImageRenderer {
         let mut triangle_renderer = ImageRenderer::new(
             renderer_width,
             renderer_height,
-            self.scale,
-            self.scaling_target,
-            self.supersampling,
+            1.0,
+            DVec2::ZERO,
+            1,
             self.font.clone(),
         );
 
         triangle_renderer.render_equilateral_triangle(
-            (position - min_point.as_dvec2()).floor(),
+            (position - min_point.as_dvec2()).round(),
             radius,
             rotation,
             color,
         );
 
         triangle_renderer.render_equilateral_triangle(
-            (position - min_point.as_dvec2()).floor(),
+            (position - min_point.as_dvec2()).round(),
             radius - thickness,
             rotation,
             Srgba::new(0.0, 0.0, 0.0, 0.0),

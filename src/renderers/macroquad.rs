@@ -33,6 +33,10 @@ impl MacroquadRenderer {
 }
 
 impl Renderer for MacroquadRenderer {
+    fn render_point(&mut self, position: ::glam::DVec2, color: Srgba) {
+        draw_rectangle(position.x as f32, position.y as f32, 1.0, 1.0, srgba_to_color(color));
+    }
+
     fn render_line(
         &mut self,
         start: ::glam::DVec2,

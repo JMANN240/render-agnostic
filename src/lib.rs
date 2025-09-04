@@ -5,6 +5,7 @@ use palette::Srgba;
 pub mod renderers;
 
 pub trait Renderer {
+    fn render_point(&mut self, position: DVec2, color: Srgba);
     fn render_line(&mut self, start: DVec2, end: DVec2, thickness: f64, color: Srgba);
     fn render_circle(&mut self, position: DVec2, radius: f64, color: Srgba);
     fn render_circle_lines(&mut self, position: DVec2, radius: f64, thickness: f64, color: Srgba);

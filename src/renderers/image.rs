@@ -11,7 +11,7 @@ use imageproc::{
     drawing::{draw_filled_circle_mut, draw_polygon_mut, draw_text_mut, text_size},
     point::Point,
 };
-use palette::Srgba;
+use palette::{num::Round, Srgba};
 
 use crate::Renderer;
 
@@ -112,6 +112,14 @@ impl ImageRenderer {
             |_, _| Rgba([0, 0, 0, 255]),
         )
     }
+
+    fn red(&self) -> RgbaImage {
+        RgbaImage::from_par_fn(
+            self.get_supersampled_width(),
+            self.get_supersampled_height(),
+            |_, _| Rgba([255, 0, 0, 255]),
+        )
+    }
 }
 
 impl Renderer for ImageRenderer {
@@ -162,28 +170,33 @@ impl Renderer for ImageRenderer {
 
     fn render_circle_lines(&mut self, position: DVec2, radius: f64, thickness: f64, color: Srgba) {
         let position = self.map_dvec2(position).round().as_ivec2();
-        let radius = (radius * self.scale * self.supersampling as f64).round() as u32;
-        let thickness = (thickness * self.scale * self.supersampling as f64).round() as u32;
+        let radius = (radius * self.scale * self.supersampling as f64).round();
+        let thickness = (thickness * self.scale * self.supersampling as f64).round();
 
-        let mut circle_image = RgbaImage::new(2 * radius + 1, 2 * radius + 1);
-
-        draw_filled_circle_mut(
-            &mut circle_image,
-            (radius as i32, radius as i32),
-            radius as i32,
-            srgba_to_rgba8(color),
+        let mut circle_renderer = ImageRenderer::new(
+            2 * radius as u32 + 1,
+            2 * radius as u32 + 1,
+            self.scale,
+            self.scaling_target,
+            self.supersampling,
+            self.font.clone(),
         );
 
-        draw_filled_circle_mut(
-            &mut circle_image,
-            (radius as i32, radius as i32),
-            radius as i32 - thickness as i32,
-            Rgba([0, 0, 0, 0]),
+        circle_renderer.render_circle(
+            dvec2(radius, radius),
+            radius,
+            color,
+        );
+
+        circle_renderer.render_circle(
+            dvec2(radius, radius),
+            radius - thickness,
+            Srgba::new(0.0, 0.0, 0.0, 0.0),
         );
 
         overlay(
             &mut self.image,
-            &circle_image,
+            &circle_renderer.render_image_onto(circle_renderer.transparent()),
             (position.x - radius as i32) as i64,
             (position.y - radius as i32) as i64,
         );
@@ -252,38 +265,44 @@ impl Renderer for ImageRenderer {
         rotation: f64,
         color: Srgba,
     ) {
-        let position = self.map_dvec2(position);
-        let width = width * self.scale * self.supersampling as f64;
-        let height = height * self.scale * self.supersampling as f64;
+        let width = (width - 1.0) * self.scale * self.supersampling as f64;
+        let height = (height - 1.0) * self.scale * self.supersampling as f64;
 
-        let absolute_offset_x = width * offset.x;
-        let absolute_offset_y = height * offset.y;
+        let calculated_offset = dvec2(
+            width * offset.x,
+            height * offset.y,
+        );
 
-        let absolute_offset = dvec2(absolute_offset_x, absolute_offset_y);
+        let position = self.map_dvec2(position) - calculated_offset;
 
-        let p1 = -absolute_offset;
-        let p2 = p1 + DVec2::X * width;
-        let p3 = p2 + DVec2::Y * height;
-        let p4 = p1 + DVec2::Y * height;
+        let axis = dvec2(
+            position.x + calculated_offset.x, // 4.5
+            position.y + calculated_offset.y, // 4.5
+        );
 
-        let theta1 = p1.to_angle();
-        let theta2 = p2.to_angle();
-        let theta3 = p3.to_angle();
-        let theta4 = p4.to_angle();
+        let p1 = position; // 0.0,0.0
+        let p2 = p1 + DVec2::X * width; // 9.0,0.0
+        let p3 = p2 + DVec2::Y * height; // 9.0,9.0
+        let p4 = p3 - DVec2::X * width; // 0.0,9.0
 
-        let q1 = position + DVec2::from_angle(theta1 + rotation) * p1.length();
-        let q2 = position + DVec2::from_angle(theta2 + rotation) * p2.length();
-        let q3 = position + DVec2::from_angle(theta3 + rotation) * p3.length();
-        let q4 = position + DVec2::from_angle(theta4 + rotation) * p4.length();
+        let q1 = rotate_point_around(p1, axis, rotation); // 0.0,0.0
+        let q2 = rotate_point_around(p2, axis, rotation); // 9.0,0.0
+        let q3 = rotate_point_around(p3, axis, rotation); // 9.0,9.0
+        let q4 = rotate_point_around(p4, axis, rotation); // 0.0,9.0
+
+        let r1 = q1.round().as_ivec2(); // 0,0
+        let r2 = q2.round().as_ivec2(); // 9,0
+        let r3 = q3.round().as_ivec2(); // 9,9
+        let r4 = q4.round().as_ivec2(); // 0,9
 
         let mut points = vec![
-            Point::new(q1.x.round() as i32, q1.y.round() as i32),
-            Point::new(q2.x.round() as i32, q2.y.round() as i32),
-            Point::new(q3.x.round() as i32, q3.y.round() as i32),
-            Point::new(q4.x.round() as i32, q4.y.round() as i32),
+            Point::new(r1.x, r1.y),
+            Point::new(r2.x, r2.y),
+            Point::new(r3.x, r3.y),
+            Point::new(r4.x, r4.y),
         ];
 
-        while points.first().is_some_and(|first_point| {
+        while points.len() > 1 && points.first().is_some_and(|first_point| {
             points
                 .last()
                 .is_some_and(|last_point| first_point == last_point)
@@ -291,7 +310,16 @@ impl Renderer for ImageRenderer {
             points.remove(points.len() - 1);
         }
 
-        draw_polygon_mut(&mut self.image, &points, srgba_to_rgba8(color));
+        if points.len() == 1 {
+            let point = points.first().unwrap();
+
+            if point.x >= 0 && point.y >= 0 {
+                self.image.put_pixel(point.x as u32, point.y as u32, srgba_to_rgba8(color));
+            }
+        } else {
+            draw_polygon_mut(&mut self.image, &points, srgba_to_rgba8(color));
+        }
+
     }
 
     fn render_rectangle_lines(
@@ -304,35 +332,29 @@ impl Renderer for ImageRenderer {
         thickness: f64,
         color: Srgba,
     ) {
-        let position = self.map_dvec2(position);
-        let width = (width * self.scale * self.supersampling as f64).round();
-        let height = (height * self.scale * self.supersampling as f64).round();
-        let thickness = (thickness * self.scale * self.supersampling as f64).round() as u32;
+        let adjusted_position = self.map_dvec2(position);
+        let adjusted_width = (width - 1.0) * self.scale * self.supersampling as f64;
+        let adjusted_height = (height - 1.0) * self.scale * self.supersampling as f64;
 
-        let absolute_offset_x = width * offset.x;
-        let absolute_offset_y = height * offset.y;
+        let axis = dvec2(
+            adjusted_position.x + adjusted_width * offset.x, // 4.5
+            adjusted_position.y + adjusted_height * offset.y, // 4.5
+        );
 
-        let absolute_offset = dvec2(absolute_offset_x, absolute_offset_y);
+        let p1 = adjusted_position; // 0.0,0.0
+        let p2 = p1 + DVec2::X * adjusted_width; // 9.0,0.0
+        let p3 = p2 + DVec2::Y * adjusted_height; // 9.0,9.0
+        let p4 = p3 - DVec2::X * adjusted_width; // 0.0,9.0
 
-        let p1 = -absolute_offset;
-        let p2 = p1 + DVec2::X * width;
-        let p3 = p2 + DVec2::Y * height;
-        let p4 = p1 + DVec2::Y * height;
+        let q1 = rotate_point_around(p1, axis, rotation); // 0.0,0.0
+        let q2 = rotate_point_around(p2, axis, rotation); // 9.0,0.0
+        let q3 = rotate_point_around(p3, axis, rotation); // 9.0,9.0
+        let q4 = rotate_point_around(p4, axis, rotation); // 0.0,9.0
 
-        let theta1 = p1.to_angle();
-        let theta2 = p2.to_angle();
-        let theta3 = p3.to_angle();
-        let theta4 = p4.to_angle();
-
-        let q1 = position + DVec2::from_angle(theta1 + rotation) * p1.length();
-        let q2 = position + DVec2::from_angle(theta2 + rotation) * p2.length();
-        let q3 = position + DVec2::from_angle(theta3 + rotation) * p3.length();
-        let q4 = position + DVec2::from_angle(theta4 + rotation) * p4.length();
-
-        let r1 = q1.round().as_ivec2();
-        let r2 = q2.round().as_ivec2();
-        let r3 = q3.round().as_ivec2();
-        let r4 = q4.round().as_ivec2();
+        let r1 = q1.round().as_ivec2(); // 0,0
+        let r2 = q2.round().as_ivec2(); // 9,0
+        let r3 = q3.round().as_ivec2(); // 9,9
+        let r4 = q4.round().as_ivec2(); // 0,9
 
         let min_x = r1.x.min(r2.x).min(r3.x).min(r4.x);
         let max_x = r1.x.max(r2.x).max(r3.x).max(r4.x);
@@ -340,12 +362,12 @@ impl Renderer for ImageRenderer {
         let min_y = r1.y.min(r2.y).min(r3.y).min(r4.y);
         let max_y = r1.y.max(r2.y).max(r3.y).max(r4.y);
 
-        let renderer_width = (max_x - min_x + 1) as u32;
-        let renderer_height = (max_y - min_y + 1) as u32;
+        let renderer_width = max_x - min_x + 1;
+        let renderer_height = max_y - min_y + 1;
 
         let mut rectangle_renderer = ImageRenderer::new(
-            renderer_width,
-            renderer_height,
+            renderer_width as u32,
+            renderer_height as u32,
             self.scale,
             self.scaling_target,
             self.supersampling,
@@ -359,7 +381,7 @@ impl Renderer for ImageRenderer {
             ),
             width,
             height,
-            offset,
+            DVec2::splat(0.5),
             rotation,
             color,
         );
@@ -369,18 +391,18 @@ impl Renderer for ImageRenderer {
                 (renderer_width as f64 / 2.0).floor(),
                 (renderer_height as f64 / 2.0).floor(),
             ),
-            width - 2.0 * thickness as f64,
-            height - 2.0 * thickness as f64,
-            offset,
+            width - 2.0 * thickness,
+            height - 2.0 * thickness,
+            DVec2::splat(0.5),
             rotation,
             Srgba::new(0.0, 0.0, 0.0, 0.0),
         );
 
         overlay(
             &mut self.image,
-            &rectangle_renderer.image,
-            0,
-            0,
+            &rectangle_renderer.render_image_onto(rectangle_renderer.transparent()),
+            (min_x as f64 - (adjusted_width * offset.x).floor()) as i64,
+            (min_y as f64 - (adjusted_height * offset.y).floor()) as i64,
         );
     }
 
@@ -479,9 +501,21 @@ impl Renderer for ImageRenderer {
 
         overlay(
             &mut self.image,
-            &triangle_renderer.image,
+            &triangle_renderer.render_image_onto(triangle_renderer.transparent()),
             min_x as i64,
             min_y as i64,
         );
     }
+}
+
+fn rotate_point_around(point: DVec2, axis: DVec2, theta: f64) -> DVec2 {
+    if theta == 0.0 {
+        return point;
+    }
+
+    let relative = point - axis;
+    let relative_theta = relative.to_angle();
+    let new_relative_theta = relative_theta + theta;
+    let new_relative = DVec2::from_angle(new_relative_theta) * relative.length();
+    new_relative + axis
 }

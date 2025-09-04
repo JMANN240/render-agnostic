@@ -4,7 +4,11 @@ use palette::Srgba;
 
 pub mod renderers;
 
-pub use renderers::{image::ImageRenderer, macroquad::MacroquadRenderer};
+#[cfg(feature = "image")]
+pub use renderers::image::ImageRenderer;
+
+#[cfg(feature = "macroquad")]
+pub use renderers::macroquad::MacroquadRenderer;
 
 pub trait Renderer {
     fn render_point(&mut self, position: DVec2, color: Srgba);

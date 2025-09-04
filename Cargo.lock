@@ -383,9 +383,6 @@ name = "glam"
 version = "0.30.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2d1aab06663bdce00d6ca5e5ed586ec8d18033a771906c993a1e3755b368d85"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "half"
@@ -852,12 +849,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "particula-rs"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "090d3c4825a0a0ea2efb596039d0457acf6a0a0cfb8088d9658c8a96cd0bcabc"
-
-[[package]]
 name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1125,7 +1116,6 @@ dependencies = [
  "itertools 0.14.0",
  "macroquad",
  "palette",
- "particula-rs",
 ]
 
 [[package]]

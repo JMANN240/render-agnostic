@@ -1,4 +1,4 @@
-use std::f64::consts::TAU;
+use std::f64::consts::PI;
 
 use ab_glyph::FontArc;
 use glam::DVec2;
@@ -15,17 +15,30 @@ fn main() {
         FontArc::try_from_slice(include_bytes!("roboto.ttf")).unwrap(),
     );
 
-    image_renderer.render_circle(
-        DVec2::splat(16.0),
-        16.0,
-        Srgba::new(1.0, 1.0, 1.0, 1.0),
-    );
+    image_renderer.render_circle(DVec2::splat(16.0), 16.0, Srgba::new(1.0, 1.0, 1.0, 1.0));
 
     image_renderer.render_circle_lines(
         DVec2::splat(48.0),
         16.0,
         2.0,
         Srgba::new(0.0, 0.0, 1.0, 1.0),
+    );
+
+    image_renderer.render_arc(
+        DVec2::splat(32.0),
+        16.0,
+        0.0,
+        PI,
+        Srgba::new(1.0, 0.0, 0.0, 1.0),
+    );
+
+    image_renderer.render_arc_lines(
+        DVec2::splat(32.0),
+        16.0,
+        PI,
+        PI,
+        2.0,
+        Srgba::new(0.0, 1.0, 0.0, 1.0),
     );
 
     image_renderer

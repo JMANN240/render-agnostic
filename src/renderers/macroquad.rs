@@ -34,7 +34,13 @@ impl MacroquadRenderer {
 
 impl Renderer for MacroquadRenderer {
     fn render_point(&mut self, position: ::glam::DVec2, color: Srgba) {
-        draw_rectangle(position.x as f32, position.y as f32, 1.0, 1.0, srgba_to_color(color));
+        draw_rectangle(
+            position.x as f32,
+            position.y as f32,
+            1.0,
+            1.0,
+            srgba_to_color(color),
+        );
     }
 
     fn render_line(
@@ -80,6 +86,27 @@ impl Renderer for MacroquadRenderer {
     }
 
     fn render_arc(
+        &mut self,
+        position: ::glam::DVec2,
+        radius: f64,
+        rotation: f64,
+        arc: f64,
+        color: Srgba,
+    ) {
+        // TODO: yeeeaaah... this is just the outline
+        draw_arc(
+            position.x as f32,
+            position.y as f32,
+            64,
+            radius as f32,
+            rotation as f32,
+            1.0,
+            arc as f32,
+            srgba_to_color(color),
+        );
+    }
+
+    fn render_arc_lines(
         &mut self,
         position: ::glam::DVec2,
         radius: f64,

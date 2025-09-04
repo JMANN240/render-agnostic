@@ -1,4 +1,4 @@
-use std::f64::consts::{PI, TAU};
+use std::f64::consts::PI;
 
 use ab_glyph::FontArc;
 use glam::DVec2;

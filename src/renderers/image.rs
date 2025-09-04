@@ -1,4 +1,7 @@
-use std::f64::consts::{FRAC_PI_2, PI};
+use std::{
+    f64::consts::{FRAC_PI_2, PI},
+    iter::once,
+};
 
 use ab_glyph::FontArc;
 use anchor2d::{Anchor2D, HorizontalAnchor, VerticalAnchorContext, VerticalAnchorValue};
@@ -126,14 +129,6 @@ impl ImageRenderer {
         )
     }
 
-    fn magenta(&self) -> RgbaImage {
-        RgbaImage::from_pixel(
-            self.get_supersampled_width(),
-            self.get_supersampled_height(),
-            Rgba([255, 0, 255, 255]),
-        )
-    }
-
     fn get_base_points(&self, position: DVec2, width: f64, height: f64) -> Vec<DVec2> {
         vec![
             position,
@@ -185,7 +180,8 @@ impl Renderer for ImageRenderer {
 
         draw_filled_rect_mut(
             &mut self.image,
-            Rect::at(integer_position.x, integer_position.y).of_size(width.round() as u32, height.round() as u32),
+            Rect::at(integer_position.x, integer_position.y)
+                .of_size(width.round() as u32, height.round() as u32),
             srgba_to_rgba8(color),
         );
     }
@@ -262,16 +258,68 @@ impl Renderer for ImageRenderer {
         );
     }
 
-    fn render_arc(
+    fn render_arc(&mut self, position: DVec2, radius: f64, rotation: f64, arc: f64, color: Srgba) {
+        let position = self.map_dvec2(position);
+        let radius = self.map_value(radius);
+
+        let points =
+            once(position)
+                .chain((0..32).map(|i| {
+                    position + radius * DVec2::from_angle(rotation + arc * i as f64 / 31.0)
+                }))
+                .collect::<Vec<DVec2>>();
+
+        let integer_points = self
+            .get_unique_integer_points(&points)
+            .iter()
+            .map(|integer_point| Point::new(integer_point.x, integer_point.y))
+            .collect::<Vec<Point<i32>>>();
+
+        if integer_points.len() == 1 {
+            let integer_point = integer_points.first().unwrap();
+
+            self.render_point(dvec2(integer_point.x as f64, integer_point.y as f64), color);
+        } else {
+            draw_polygon_mut(&mut self.image, &integer_points, srgba_to_rgba8(color));
+        }
+    }
+
+    fn render_arc_lines(
         &mut self,
         position: DVec2,
         radius: f64,
-        _rotation: f64,
-        _arc: f64,
+        rotation: f64,
+        arc: f64,
         thickness: f64,
         color: Srgba,
     ) {
-        self.render_circle_lines(position, radius, thickness, color); //TODO
+        let position = self.map_dvec2(position).round().as_ivec2();
+        let radius = (radius * self.scale * self.supersampling as f64).round();
+        let thickness = (thickness * self.scale * self.supersampling as f64).round();
+
+        let mut circle_renderer = ImageRenderer::new(
+            2 * radius as u32 + 1,
+            2 * radius as u32 + 1,
+            self.scale,
+            self.scaling_target,
+            self.supersampling,
+            self.font.clone(),
+        );
+
+        circle_renderer.render_arc(dvec2(radius, radius), radius, rotation, arc, color);
+
+        circle_renderer.render_circle(
+            dvec2(radius, radius),
+            radius - thickness,
+            Srgba::new(0.0, 0.0, 0.0, 0.0),
+        );
+
+        overlay(
+            &mut self.image,
+            &circle_renderer.render_image_onto(circle_renderer.transparent()),
+            (position.x - radius as i32) as i64,
+            (position.y - radius as i32) as i64,
+        );
     }
 
     fn render_text(
@@ -420,7 +468,12 @@ impl Renderer for ImageRenderer {
             color,
         );
 
-        let midpoint = rotated_points.iter().copied().map(|rotated_point| rotated_point - min_vec).sum::<DVec2>() / 4.0;
+        let midpoint = rotated_points
+            .iter()
+            .copied()
+            .map(|rotated_point| rotated_point - min_vec)
+            .sum::<DVec2>()
+            / 4.0;
 
         rectangle_renderer.render_rectangle(
             midpoint,

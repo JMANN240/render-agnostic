@@ -10,7 +10,9 @@ pub trait Renderer {
     fn render_circle(&mut self, position: DVec2, radius: f64, color: Srgba);
     fn render_circle_lines(&mut self, position: DVec2, radius: f64, thickness: f64, color: Srgba);
 
-    fn render_arc(
+    fn render_arc(&mut self, position: DVec2, radius: f64, rotation: f64, arc: f64, color: Srgba);
+
+    fn render_arc_lines(
         &mut self,
         position: DVec2,
         radius: f64,

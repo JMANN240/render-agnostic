@@ -4,6 +4,8 @@ use palette::Srgba;
 
 pub mod renderers;
 
+pub use renderers::{image::ImageRenderer, macroquad::MacroquadRenderer};
+
 pub trait Renderer {
     fn render_point(&mut self, position: DVec2, color: Srgba);
     fn render_line(&mut self, start: DVec2, end: DVec2, thickness: f64, color: Srgba);

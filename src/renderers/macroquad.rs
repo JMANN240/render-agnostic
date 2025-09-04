@@ -99,9 +99,9 @@ impl Renderer for MacroquadRenderer {
             position.y as f32,
             64,
             radius as f32,
-            rotation as f32,
+            rotation.to_degrees() as f32,
             1.0,
-            arc as f32,
+            arc.to_degrees() as f32,
             srgba_to_color(color),
         );
     }
@@ -120,9 +120,9 @@ impl Renderer for MacroquadRenderer {
             position.y as f32,
             64,
             radius as f32,
-            rotation as f32,
+            rotation.to_degrees() as f32,
             thickness as f32,
-            arc as f32,
+            arc.to_degrees() as f32,
             srgba_to_color(color),
         );
     }

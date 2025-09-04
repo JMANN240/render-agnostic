@@ -1,7 +1,7 @@
-use std::f64::consts::TAU;
+use std::f64::consts::{PI, TAU};
 
 use ab_glyph::FontArc;
-use glam::DVec2;
+use glam::{dvec2, DVec2};
 use palette::Srgba;
 use render_agnostic::{Renderer, renderers::image::ImageRenderer};
 
@@ -11,7 +11,7 @@ fn main() {
         64,
         1.0,
         DVec2::ZERO,
-        4,
+        1,
         FontArc::try_from_slice(include_bytes!("roboto.ttf")).unwrap(),
     );
 
@@ -22,6 +22,15 @@ fn main() {
         DVec2::splat(0.0),
         0.0,
         Srgba::new(1.0, 1.0, 1.0, 1.0),
+    );
+
+    image_renderer.render_rectangle(
+        dvec2(32.0, 32.0),
+        16.0,
+        16.0,
+        DVec2::splat(0.5),
+        -PI / 2.0,
+        Srgba::new(1.0, 0.0, 1.0, 1.0),
     );
 
     image_renderer.render_rectangle_lines(

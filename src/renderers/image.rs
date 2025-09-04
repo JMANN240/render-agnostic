@@ -259,6 +259,10 @@ impl Renderer for ImageRenderer {
     }
 
     fn render_arc(&mut self, position: DVec2, radius: f64, rotation: f64, arc: f64, color: Srgba) {
+        if arc == 0.0 {
+            return;
+        }
+
         let position = self.map_dvec2(position);
         let radius = self.map_value(radius);
 
@@ -293,6 +297,10 @@ impl Renderer for ImageRenderer {
         thickness: f64,
         color: Srgba,
     ) {
+        if arc == 0.0 {
+            return;
+        }
+
         let position = self.map_dvec2(position).round().as_ivec2();
         let radius = self.map_value(radius).round();
         let thickness = self.map_value(thickness).round();

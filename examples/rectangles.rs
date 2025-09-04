@@ -40,6 +40,15 @@ async fn main() {
         Srgba::new(0.0, 0.0, 1.0, 1.0),
     );
 
+    image_renderer.render_rectangle(
+        DVec2::splat(500.0),
+        1.0,
+        1.0,
+        DVec2::splat(0.5),
+        TAU / 8.0,
+        Srgba::new(0.0, 0.0, 1.0, 1.0),
+    );
+
     // image_renderer.render_rectangle_lines(
     //     DVec2::splat(10.0),
     //     9.0,

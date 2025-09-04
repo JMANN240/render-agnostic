@@ -145,7 +145,7 @@ impl Renderer for ImageRenderer {
             Point::new(p4.x.round() as i32, p4.y.round() as i32),
         ];
 
-        while points.first().is_some_and(|first_point| {
+        while points.len() > 1 && points.first().is_some_and(|first_point| {
             points
                 .last()
                 .is_some_and(|last_point| first_point == last_point)
@@ -153,7 +153,16 @@ impl Renderer for ImageRenderer {
             points.remove(points.len() - 1);
         }
 
-        draw_polygon_mut(&mut self.image, &points, srgba_to_rgba8(color));
+        if points.len() == 1 {
+            let point = points.first().unwrap();
+
+            if point.x >= 0 && point.y >= 0 && point.x < self.image.width() as i32 && point.y < self.image.height() as i32 {
+                self.image.put_pixel(point.x as u32, point.y as u32, srgba_to_rgba8(color));
+            }
+        } else {
+            draw_polygon_mut(&mut self.image, &points, srgba_to_rgba8(color));
+        }
+
     }
 
     fn render_circle(&mut self, position: DVec2, radius: f64, color: Srgba) {
@@ -313,7 +322,7 @@ impl Renderer for ImageRenderer {
         if points.len() == 1 {
             let point = points.first().unwrap();
 
-            if point.x >= 0 && point.y >= 0 {
+            if point.x >= 0 && point.y >= 0 && point.x < self.image.width() as i32 && point.y < self.image.height() as i32 {
                 self.image.put_pixel(point.x as u32, point.y as u32, srgba_to_rgba8(color));
             }
         } else {
@@ -422,7 +431,7 @@ impl Renderer for ImageRenderer {
             .map(|point| Point::new(point.x.round() as i32, point.y.round() as i32))
             .collect::<Vec<Point<i32>>>();
 
-        while points.first().is_some_and(|first_point| {
+        while points.len() > 1 && points.first().is_some_and(|first_point| {
             points
                 .last()
                 .is_some_and(|last_point| first_point == last_point)
@@ -430,7 +439,15 @@ impl Renderer for ImageRenderer {
             points.remove(points.len() - 1);
         }
 
-        draw_polygon_mut(&mut self.image, &points, srgba_to_rgba8(color));
+        if points.len() == 1 {
+            let point = points.first().unwrap();
+
+            if point.x >= 0 && point.y >= 0 && point.x < self.image.width() as i32 && point.y < self.image.height() as i32 {
+                self.image.put_pixel(point.x as u32, point.y as u32, srgba_to_rgba8(color));
+            }
+        } else {
+            draw_polygon_mut(&mut self.image, &points, srgba_to_rgba8(color));
+        }
     }
 
     fn render_equilateral_triangle_lines(

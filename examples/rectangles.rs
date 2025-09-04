@@ -16,17 +16,16 @@ async fn main() {
         128,
         1.0,
         DVec2::ZERO,
-        1,
+        4,
         FontArc::try_from_slice(include_bytes!("roboto.ttf")).unwrap(),
     );
 
-    image_renderer.render_rectangle_lines(
+    image_renderer.render_rectangle(
         DVec2::splat(100.0),
         15.0,
         15.0,
         DVec2::splat(0.5),
         0.0,
-        2.0,
         Srgba::new(1.0, 0.0, 0.0, 1.0),
     );
 

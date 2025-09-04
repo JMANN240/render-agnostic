@@ -344,6 +344,7 @@ impl Renderer for ImageRenderer {
         let adjusted_position = self.map_dvec2(position);
         let adjusted_width = (width - 1.0) * self.scale * self.supersampling as f64;
         let adjusted_height = (height - 1.0) * self.scale * self.supersampling as f64;
+        let adjusted_thickness = thickness * self.scale * self.supersampling as f64;
 
         let axis = dvec2(
             adjusted_position.x + adjusted_width * offset.x, // 4.5
@@ -388,8 +389,8 @@ impl Renderer for ImageRenderer {
                 (renderer_width as f64 / 2.0).floor(),
                 (renderer_height as f64 / 2.0).floor(),
             ),
-            width,
-            height,
+            adjusted_width,
+            adjusted_height,
             DVec2::splat(0.5),
             rotation,
             color,
@@ -400,8 +401,8 @@ impl Renderer for ImageRenderer {
                 (renderer_width as f64 / 2.0).floor(),
                 (renderer_height as f64 / 2.0).floor(),
             ),
-            width - 2.0 * thickness,
-            height - 2.0 * thickness,
+            adjusted_width - 2.0 * adjusted_thickness,
+            adjusted_height - 2.0 * adjusted_thickness,
             DVec2::splat(0.5),
             rotation,
             Srgba::new(0.0, 0.0, 0.0, 0.0),

@@ -170,6 +170,69 @@ impl Renderer for MacroquadRenderer {
         );
     }
 
+    fn render_text_outline(
+        &mut self,
+        text: &str,
+        position: ::glam::DVec2,
+        anchor: Anchor2D,
+        size: f64,
+        outline_thickness: f64,
+        color: Srgba,
+        outline_color: Srgba,
+    ) {
+        let measurement = measure_text(text, self.font.as_ref(), size as u16, 1.0);
+
+        let x = match anchor.get_horizontal() {
+            HorizontalAnchor::Left => position.x,
+            HorizontalAnchor::Center => position.x - measurement.width as f64 / 2.0,
+            HorizontalAnchor::Right => position.x - measurement.width as f64,
+        };
+
+        let vertical_anchor = anchor.get_vertical();
+
+        let y = match (vertical_anchor.get_context(), vertical_anchor.get_value()) {
+            (VerticalAnchorContext::Graphics, VerticalAnchorValue::Bottom) => position.y,
+            (VerticalAnchorContext::Math, VerticalAnchorValue::Bottom) => {
+                position.y + measurement.offset_y as f64
+            }
+            (_, VerticalAnchorValue::Center) => position.y + measurement.offset_y as f64 / 2.0,
+            (VerticalAnchorContext::Graphics, VerticalAnchorValue::Top) => {
+                position.y + measurement.offset_y as f64
+            }
+            (VerticalAnchorContext::Math, VerticalAnchorValue::Top) => position.y,
+        };
+
+        for i in -1..=1 {
+            for j in -1..=1 {
+                if i != 0 || j != 0 {
+                    draw_text_ex(
+                        text,
+                        x as f32 - i as f32 * outline_thickness as f32,
+                        y as f32 - j as f32 * outline_thickness as f32,
+                        TextParams {
+                            font: self.font.as_ref(),
+                            font_size: size as u16,
+                            color: srgba_to_color(outline_color),
+                            ..TextParams::default()
+                        },
+                    );
+                }
+            }
+        }
+
+        draw_text_ex(
+            text,
+            x as f32,
+            y as f32,
+            TextParams {
+                font: self.font.as_ref(),
+                font_size: size as u16,
+                color: srgba_to_color(color),
+                ..TextParams::default()
+            },
+        );
+    }
+
     fn render_rectangle(
         &mut self,
         position: ::glam::DVec2,

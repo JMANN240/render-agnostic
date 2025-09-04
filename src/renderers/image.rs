@@ -218,7 +218,7 @@ impl Renderer for ImageRenderer {
 
     fn render_circle(&mut self, position: DVec2, radius: f64, color: Srgba) {
         let position = self.map_dvec2(position).round().as_ivec2();
-        let radius = (radius * self.scale * self.supersampling as f64).round() as u32;
+        let radius = self.map_value(radius).round() as u32;
 
         draw_filled_circle_mut(
             &mut self.image,
@@ -230,8 +230,8 @@ impl Renderer for ImageRenderer {
 
     fn render_circle_lines(&mut self, position: DVec2, radius: f64, thickness: f64, color: Srgba) {
         let position = self.map_dvec2(position).round().as_ivec2();
-        let radius = (radius * self.scale * self.supersampling as f64).round();
-        let thickness = (thickness * self.scale * self.supersampling as f64).round();
+        let radius = self.map_value(radius).round();
+        let thickness = self.map_value(thickness).round();
 
         let mut circle_renderer = ImageRenderer::new(
             2 * radius as u32 + 1,
@@ -294,8 +294,8 @@ impl Renderer for ImageRenderer {
         color: Srgba,
     ) {
         let position = self.map_dvec2(position).round().as_ivec2();
-        let radius = (radius * self.scale * self.supersampling as f64).round();
-        let thickness = (thickness * self.scale * self.supersampling as f64).round();
+        let radius = self.map_value(radius).round();
+        let thickness = self.map_value(thickness).round();
 
         let mut circle_renderer = ImageRenderer::new(
             2 * radius as u32 + 1,
@@ -331,7 +331,7 @@ impl Renderer for ImageRenderer {
         color: Srgba,
     ) {
         let position = self.map_dvec2(position);
-        let size = size * self.scale * self.supersampling as f64;
+        let size = self.map_value(size);
 
         let (text_width, _) = text_size(size as f32, &self.font, text);
 
@@ -352,6 +352,67 @@ impl Renderer for ImageRenderer {
             (VerticalAnchorContext::Graphics, VerticalAnchorValue::Top) => position.y,
             (VerticalAnchorContext::Math, VerticalAnchorValue::Top) => position.y - size / 1.25,
         };
+
+        draw_text_mut(
+            &mut self.image,
+            srgba_to_rgba8(color),
+            x as i32,
+            y as i32,
+            size as f32,
+            &self.font,
+            text,
+        );
+    }
+
+    fn render_text_outline(
+        &mut self,
+        text: &str,
+        position: DVec2,
+        anchor: Anchor2D,
+        size: f64,
+        outline_thickness: f64,
+        color: Srgba,
+        outline_color: Srgba,
+    ) {
+        let position = self.map_dvec2(position);
+        let size = self.map_value(size);
+        let outline_thickness = self.map_value(outline_thickness);
+
+        let (text_width, _) = text_size(size as f32, &self.font, text);
+
+        let x = match anchor.get_horizontal() {
+            HorizontalAnchor::Left => position.x,
+            HorizontalAnchor::Center => position.x - text_width as f64 / 2.0,
+            HorizontalAnchor::Right => position.x - text_width as f64,
+        };
+
+        let vertical_anchor = anchor.get_vertical();
+
+        let y = match (vertical_anchor.get_context(), vertical_anchor.get_value()) {
+            (VerticalAnchorContext::Graphics, VerticalAnchorValue::Bottom) => {
+                position.y - size / 1.25
+            }
+            (VerticalAnchorContext::Math, VerticalAnchorValue::Bottom) => position.y,
+            (_, VerticalAnchorValue::Center) => position.y - size / 1.25 / 2.0,
+            (VerticalAnchorContext::Graphics, VerticalAnchorValue::Top) => position.y,
+            (VerticalAnchorContext::Math, VerticalAnchorValue::Top) => position.y - size / 1.25,
+        };
+
+        for i in -1..=1 {
+            for j in -1..=1 {
+                if i != 0 || j != 0 {
+                    draw_text_mut(
+                        &mut self.image,
+                        srgba_to_rgba8(outline_color),
+                        (x - i as f64 * outline_thickness).round() as i32,
+                        (y - j as f64 * outline_thickness).round() as i32,
+                        size as f32,
+                        &self.font,
+                        text,
+                    );
+                }
+            }
+        }
 
         draw_text_mut(
             &mut self.image,

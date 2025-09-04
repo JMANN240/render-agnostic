@@ -37,6 +37,17 @@ pub trait Renderer {
         color: Srgba,
     );
 
+    fn render_text_outline(
+        &mut self,
+        text: &str,
+        position: DVec2,
+        anchor: Anchor2D,
+        size: f64,
+        outline_thickness: f64,
+        color: Srgba,
+        outline_color: Srgba,
+    );
+
     fn render_rectangle(
         &mut self,
         position: DVec2,

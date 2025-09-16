@@ -241,9 +241,9 @@ impl Renderer for ImageRenderer {
         let mut circle_renderer = ImageRenderer::new(
             2 * radius as u32 + 1,
             2 * radius as u32 + 1,
-            self.scale,
-            self.scaling_target,
-            self.supersampling,
+            1.0,
+            DVec2::ZERO,
+            1,
             self.font.clone(),
         );
 
@@ -313,9 +313,9 @@ impl Renderer for ImageRenderer {
         let mut circle_renderer = ImageRenderer::new(
             2 * radius as u32 + 1,
             2 * radius as u32 + 1,
-            self.scale,
-            self.scaling_target,
-            self.supersampling,
+            1.0,
+            DVec2::ZERO,
+            1,
             self.font.clone(),
         );
 

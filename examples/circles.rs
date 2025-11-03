@@ -9,8 +9,8 @@ fn main() {
     let mut image_renderer = ImageRenderer::new(
         64,
         64,
-        1.0,
-        DVec2::ZERO,
+        0.8,
+        DVec2::splat(0.5),
         1,
         FontArc::try_from_slice(include_bytes!("roboto.ttf")).unwrap(),
     );

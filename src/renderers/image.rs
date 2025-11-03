@@ -186,12 +186,17 @@ impl Renderer for ImageRenderer {
 
         let integer_position = position.round().as_ivec2();
 
-        draw_filled_rect_mut(
-            &mut self.image,
-            Rect::at(integer_position.x, integer_position.y)
-                .of_size(width.round() as u32, height.round() as u32),
-            srgba_to_rgba8(color),
-        );
+        let integer_width = width.round() as u32;
+        let integer_height = height.round() as u32;
+
+        if integer_width > 0 && integer_height > 0 {
+            draw_filled_rect_mut(
+                &mut self.image,
+                Rect::at(integer_position.x, integer_position.y)
+                    .of_size(integer_width, integer_height),
+                srgba_to_rgba8(color),
+            );
+        }
     }
 
     fn render_line(&mut self, start: DVec2, end: DVec2, thickness: f64, color: Srgba) {
@@ -244,9 +249,9 @@ impl Renderer for ImageRenderer {
         let mut circle_renderer = ImageRenderer::new(
             2 * radius as u32 + 1,
             2 * radius as u32 + 1,
-            self.scale,
-            self.scaling_target,
-            self.supersampling,
+            1.0,
+            DVec2::ZERO,
+            1,
             self.font.clone(),
         );
 
@@ -316,9 +321,9 @@ impl Renderer for ImageRenderer {
         let mut circle_renderer = ImageRenderer::new(
             2 * radius as u32 + 1,
             2 * radius as u32 + 1,
-            self.scale,
-            self.scaling_target,
-            self.supersampling,
+            1.0,
+            DVec2::ZERO,
+            1,
             self.font.clone(),
         );
 

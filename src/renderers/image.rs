@@ -9,13 +9,13 @@ use anchor2d::{Anchor2D, HorizontalAnchor, VerticalAnchorContext, VerticalAnchor
 use glam::{DVec2, IVec2, dvec2, ivec2};
 use image::{
     Rgba, RgbaImage,
-    imageops::{FilterType, crop_imm, overlay, resize, thumbnail},
+    imageops::{FilterType, overlay, resize},
 };
 use imageproc::{
     drawing::{
         draw_filled_circle_mut, draw_filled_rect_mut, draw_polygon_mut, draw_text_mut, text_size,
     },
-    geometric_transformations::{Interpolation, rotate, rotate_about_center},
+    geometric_transformations::{Interpolation, rotate},
     point::Point,
     rect::Rect,
 };

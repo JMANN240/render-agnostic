@@ -85,4 +85,14 @@ pub trait Renderer {
         thickness: f64,
         color: Srgba,
     );
+
+    fn render_image(
+        &mut self,
+        image_name: &str,
+        position: DVec2,
+        width: f64,
+        height: f64,
+        offset: DVec2,
+        rotation: f64,
+    );
 }

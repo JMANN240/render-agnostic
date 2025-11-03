@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anchor2d::{Anchor2D, HorizontalAnchor, VerticalAnchorContext, VerticalAnchorValue};
 use macroquad::prelude::*;
 use palette::Srgba;
@@ -16,11 +18,15 @@ fn srgba_to_color(srgba: Srgba) -> Color {
 #[derive(Debug, Default, Clone)]
 pub struct MacroquadRenderer {
     font: Option<Font>,
+    images: HashMap<String, Texture2D>,
 }
 
 impl MacroquadRenderer {
     pub fn new(font: Option<Font>) -> Self {
-        Self { font }
+        Self {
+            font,
+            images: HashMap::default(),
+        }
     }
 
     pub fn get_font(&self) -> Option<&Font> {
@@ -29,6 +35,10 @@ impl MacroquadRenderer {
 
     pub fn set_font(&mut self, font: Option<Font>) {
         self.font = font;
+    }
+
+    pub fn register_image(&mut self, image_name: String, image: Texture2D) {
+        self.images.insert(image_name, image);
     }
 }
 
@@ -313,5 +323,32 @@ impl Renderer for MacroquadRenderer {
             thickness as f32,
             srgba_to_color(color),
         );
+    }
+
+    fn render_image(
+        &mut self,
+        image_name: &str,
+        position: ::glam::DVec2,
+        width: f64,
+        height: f64,
+        offset: ::glam::DVec2,
+        rotation: f64,
+    ) {
+        if let Some(image) = self.images.get(image_name) {
+            draw_texture_ex(
+                image,
+                (position.x - width * offset.x) as f32,
+                (position.y - height * offset.y) as f32,
+                WHITE,
+                DrawTextureParams {
+                    dest_size: Some(vec2(width as f32, height as f32)),
+                    source: None,
+                    rotation: rotation as f32,
+                    flip_x: false,
+                    flip_y: false,
+                    pivot: Some(dvec2(position.x, position.y).as_vec2()),
+                },
+            );
+        }
     }
 }

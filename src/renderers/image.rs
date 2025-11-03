@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     f64::consts::{FRAC_PI_2, PI},
     iter::once,
 };
@@ -8,12 +9,13 @@ use anchor2d::{Anchor2D, HorizontalAnchor, VerticalAnchorContext, VerticalAnchor
 use glam::{DVec2, IVec2, dvec2, ivec2};
 use image::{
     Rgba, RgbaImage,
-    imageops::{FilterType, overlay, resize},
+    imageops::{FilterType, crop_imm, overlay, resize, thumbnail},
 };
 use imageproc::{
     drawing::{
         draw_filled_circle_mut, draw_filled_rect_mut, draw_polygon_mut, draw_text_mut, text_size,
     },
+    geometric_transformations::{Interpolation, rotate, rotate_about_center},
     point::Point,
     rect::Rect,
 };
@@ -39,6 +41,7 @@ pub struct ImageRenderer {
     scaling_target: DVec2,
     supersampling: u32,
     font: FontArc,
+    images: HashMap<String, RgbaImage>,
 }
 
 impl ImageRenderer {
@@ -58,6 +61,7 @@ impl ImageRenderer {
             scaling_target,
             supersampling,
             font,
+            images: HashMap::default(),
         }
     }
 
@@ -167,6 +171,10 @@ impl ImageRenderer {
             .map(|point| point.round().as_ivec2())
             .unique()
             .collect::<Vec<IVec2>>()
+    }
+
+    pub fn register_image(&mut self, image_name: String, image: RgbaImage) {
+        self.images.insert(image_name, image);
     }
 }
 
@@ -667,6 +675,45 @@ impl Renderer for ImageRenderer {
             min_x as i64,
             min_y as i64,
         );
+    }
+
+    fn render_image(
+        &mut self,
+        image_name: &str,
+        position: ::glam::DVec2,
+        width: f64,
+        height: f64,
+        offset: ::glam::DVec2,
+        rotation: f64,
+    ) {
+        let position = self.map_dvec2(position);
+        let width = self.map_value(width) - 1.0;
+        let height = self.map_value(height) - 1.0;
+
+        if let Some(image) = self.images.get(image_name) {
+            let resized_image = resize(image, width as u32, height as u32, FilterType::Nearest);
+            let mut base_image = self.transparent();
+            overlay(
+                &mut base_image,
+                &resized_image,
+                (position.x - width * offset.x) as i64,
+                (position.y - height * offset.y) as i64,
+            );
+            let rotated_image = rotate(
+                &base_image,
+                (position.x as f32, position.y as f32),
+                rotation as f32,
+                Interpolation::Nearest,
+                Rgba::from([0, 0, 0, 0]),
+            );
+
+            overlay(
+                &mut self.image,
+                &rotated_image,
+                0,
+                0,
+            );
+        }
     }
 }
 

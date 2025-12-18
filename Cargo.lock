@@ -1159,7 +1159,7 @@ dependencies = [
 
 [[package]]
 name = "render-agnostic"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "ab_glyph",
  "anchor2d",

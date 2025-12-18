@@ -271,7 +271,15 @@ impl Renderer for ImageRenderer {
         );
     }
 
-    fn render_arc(&mut self, position: DVec2, radius: f64, rotation: f64, arc: f64, color: Srgba) {
+    fn render_arc(
+        &mut self,
+        position: DVec2,
+        radius: f64,
+        rotation: f64,
+        sides: u8,
+        arc: f64,
+        color: Srgba,
+    ) {
         if arc == 0.0 {
             return;
         }
@@ -279,12 +287,12 @@ impl Renderer for ImageRenderer {
         let position = self.map_dvec2(position);
         let radius = self.map_value(radius);
 
-        let points =
-            once(position)
-                .chain((0..32).map(|i| {
-                    position + radius * DVec2::from_angle(rotation + arc * i as f64 / 31.0)
-                }))
-                .collect::<Vec<DVec2>>();
+        let points = once(position)
+            .chain((0..sides).map(|i| {
+                position
+                    + radius * DVec2::from_angle(rotation + arc * i as f64 / (sides - 1) as f64)
+            }))
+            .collect::<Vec<DVec2>>();
 
         let integer_points = self
             .get_unique_integer_points(&points)
@@ -306,6 +314,7 @@ impl Renderer for ImageRenderer {
         position: DVec2,
         radius: f64,
         rotation: f64,
+        sides: u8,
         arc: f64,
         thickness: f64,
         color: Srgba,
@@ -327,7 +336,7 @@ impl Renderer for ImageRenderer {
             self.font.clone(),
         );
 
-        circle_renderer.render_arc(dvec2(radius, radius), radius, rotation, arc, color);
+        circle_renderer.render_arc(dvec2(radius, radius), radius, rotation, sides, arc, color);
 
         circle_renderer.render_circle(
             dvec2(radius, radius),
@@ -712,12 +721,7 @@ impl Renderer for ImageRenderer {
                 Rgba::from([0, 0, 0, 0]),
             );
 
-            overlay(
-                &mut self.image,
-                &rotated_image,
-                0,
-                0,
-            );
+            overlay(&mut self.image, &rotated_image, 0, 0);
         }
     }
 }

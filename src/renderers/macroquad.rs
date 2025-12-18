@@ -100,6 +100,7 @@ impl Renderer for MacroquadRenderer {
         position: ::glam::DVec2,
         radius: f64,
         rotation: f64,
+        sides: u8,
         arc: f64,
         color: Srgba,
     ) {
@@ -107,7 +108,7 @@ impl Renderer for MacroquadRenderer {
         draw_arc(
             position.x as f32,
             position.y as f32,
-            64,
+            sides,
             radius as f32,
             rotation.to_degrees() as f32,
             1.0,
@@ -121,6 +122,7 @@ impl Renderer for MacroquadRenderer {
         position: ::glam::DVec2,
         radius: f64,
         rotation: f64,
+        sides: u8,
         arc: f64,
         thickness: f64,
         color: Srgba,
@@ -128,7 +130,7 @@ impl Renderer for MacroquadRenderer {
         draw_arc(
             position.x as f32,
             position.y as f32,
-            64,
+            sides,
             radius as f32,
             rotation.to_degrees() as f32,
             thickness as f32,

@@ -176,6 +176,109 @@ impl ImageRenderer {
     pub fn register_image(&mut self, image_name: String, image: RgbaImage) {
         self.images.insert(image_name, image);
     }
+
+    fn render_line(
+        &mut self,
+        text: &str,
+        position: DVec2,
+        anchor: Anchor2D,
+        size: f64,
+        color: Srgba,
+    ) {
+        let position = self.map_dvec2(position);
+        let size = self.map_value(size);
+
+        let (text_width, _) = text_size(size as f32, &self.font, text);
+
+        let x = match anchor.get_horizontal() {
+            HorizontalAnchor::Left => position.x,
+            HorizontalAnchor::Center => position.x - text_width as f64 / 2.0,
+            HorizontalAnchor::Right => position.x - text_width as f64,
+        };
+
+        let vertical_anchor = anchor.get_vertical();
+
+        let y = match (vertical_anchor.get_context(), vertical_anchor.get_value()) {
+            (VerticalAnchorContext::Graphics, VerticalAnchorValue::Bottom) => {
+                position.y - size / 1.25
+            }
+            (VerticalAnchorContext::Math, VerticalAnchorValue::Bottom) => position.y,
+            (_, VerticalAnchorValue::Center) => position.y - size / 1.25 / 2.0,
+            (VerticalAnchorContext::Graphics, VerticalAnchorValue::Top) => position.y,
+            (VerticalAnchorContext::Math, VerticalAnchorValue::Top) => position.y - size / 1.25,
+        };
+
+        draw_text_mut(
+            &mut self.image,
+            srgba_to_rgba8(color),
+            x as i32,
+            y as i32,
+            size as f32,
+            &self.font,
+            text,
+        );
+    }
+
+    fn render_line_outline(
+        &mut self,
+        text: &str,
+        position: DVec2,
+        anchor: Anchor2D,
+        size: f64,
+        outline_thickness: f64,
+        color: Srgba,
+        outline_color: Srgba,
+    ) {
+        let position = self.map_dvec2(position);
+        let size = self.map_value(size);
+        let outline_thickness = self.map_value(outline_thickness);
+
+        let (text_width, _) = text_size(size as f32, &self.font, text);
+
+        let x = match anchor.get_horizontal() {
+            HorizontalAnchor::Left => position.x,
+            HorizontalAnchor::Center => position.x - text_width as f64 / 2.0,
+            HorizontalAnchor::Right => position.x - text_width as f64,
+        };
+
+        let vertical_anchor = anchor.get_vertical();
+
+        let y = match (vertical_anchor.get_context(), vertical_anchor.get_value()) {
+            (VerticalAnchorContext::Graphics, VerticalAnchorValue::Bottom) => {
+                position.y - size / 1.25
+            }
+            (VerticalAnchorContext::Math, VerticalAnchorValue::Bottom) => position.y,
+            (_, VerticalAnchorValue::Center) => position.y - size / 1.25 / 2.0,
+            (VerticalAnchorContext::Graphics, VerticalAnchorValue::Top) => position.y,
+            (VerticalAnchorContext::Math, VerticalAnchorValue::Top) => position.y - size / 1.25,
+        };
+
+        for i in -1..=1 {
+            for j in -1..=1 {
+                if i != 0 || j != 0 {
+                    draw_text_mut(
+                        &mut self.image,
+                        srgba_to_rgba8(outline_color),
+                        (x - i as f64 * outline_thickness).round() as i32,
+                        (y - j as f64 * outline_thickness).round() as i32,
+                        size as f32,
+                        &self.font,
+                        text,
+                    );
+                }
+            }
+        }
+
+        draw_text_mut(
+            &mut self.image,
+            srgba_to_rgba8(color),
+            x as i32,
+            y as i32,
+            size as f32,
+            &self.font,
+            text,
+        );
+    }
 }
 
 impl Renderer for ImageRenderer {
@@ -360,38 +463,15 @@ impl Renderer for ImageRenderer {
         size: f64,
         color: Srgba,
     ) {
-        let position = self.map_dvec2(position);
-        let size = self.map_value(size);
-
-        let (text_width, _) = text_size(size as f32, &self.font, text);
-
-        let x = match anchor.get_horizontal() {
-            HorizontalAnchor::Left => position.x,
-            HorizontalAnchor::Center => position.x - text_width as f64 / 2.0,
-            HorizontalAnchor::Right => position.x - text_width as f64,
-        };
-
-        let vertical_anchor = anchor.get_vertical();
-
-        let y = match (vertical_anchor.get_context(), vertical_anchor.get_value()) {
-            (VerticalAnchorContext::Graphics, VerticalAnchorValue::Bottom) => {
-                position.y - size / 1.25
-            }
-            (VerticalAnchorContext::Math, VerticalAnchorValue::Bottom) => position.y,
-            (_, VerticalAnchorValue::Center) => position.y - size / 1.25 / 2.0,
-            (VerticalAnchorContext::Graphics, VerticalAnchorValue::Top) => position.y,
-            (VerticalAnchorContext::Math, VerticalAnchorValue::Top) => position.y - size / 1.25,
-        };
-
-        draw_text_mut(
-            &mut self.image,
-            srgba_to_rgba8(color),
-            x as i32,
-            y as i32,
-            size as f32,
-            &self.font,
-            text,
-        );
+        for (i, line) in text.split("\n").enumerate() {
+            self.render_line(
+                line,
+                position + DVec2::Y * size * i as f64,
+                anchor,
+                size,
+                color,
+            );
+        }
     }
 
     fn render_text_outline(
@@ -404,55 +484,17 @@ impl Renderer for ImageRenderer {
         color: Srgba,
         outline_color: Srgba,
     ) {
-        let position = self.map_dvec2(position);
-        let size = self.map_value(size);
-        let outline_thickness = self.map_value(outline_thickness);
-
-        let (text_width, _) = text_size(size as f32, &self.font, text);
-
-        let x = match anchor.get_horizontal() {
-            HorizontalAnchor::Left => position.x,
-            HorizontalAnchor::Center => position.x - text_width as f64 / 2.0,
-            HorizontalAnchor::Right => position.x - text_width as f64,
-        };
-
-        let vertical_anchor = anchor.get_vertical();
-
-        let y = match (vertical_anchor.get_context(), vertical_anchor.get_value()) {
-            (VerticalAnchorContext::Graphics, VerticalAnchorValue::Bottom) => {
-                position.y - size / 1.25
-            }
-            (VerticalAnchorContext::Math, VerticalAnchorValue::Bottom) => position.y,
-            (_, VerticalAnchorValue::Center) => position.y - size / 1.25 / 2.0,
-            (VerticalAnchorContext::Graphics, VerticalAnchorValue::Top) => position.y,
-            (VerticalAnchorContext::Math, VerticalAnchorValue::Top) => position.y - size / 1.25,
-        };
-
-        for i in -1..=1 {
-            for j in -1..=1 {
-                if i != 0 || j != 0 {
-                    draw_text_mut(
-                        &mut self.image,
-                        srgba_to_rgba8(outline_color),
-                        (x - i as f64 * outline_thickness).round() as i32,
-                        (y - j as f64 * outline_thickness).round() as i32,
-                        size as f32,
-                        &self.font,
-                        text,
-                    );
-                }
-            }
+        for (i, line) in text.split("\n").enumerate() {
+            self.render_line_outline(
+                line,
+                position + DVec2::Y * size * i as f64,
+                anchor,
+                size,
+                outline_thickness,
+                color,
+                outline_color,
+            );
         }
-
-        draw_text_mut(
-            &mut self.image,
-            srgba_to_rgba8(color),
-            x as i32,
-            y as i32,
-            size as f32,
-            &self.font,
-            text,
-        );
     }
 
     fn render_rectangle(

@@ -39,6 +39,14 @@ fn main() {
         Srgba::new(1.0, 1.0, 1.0, 1.0),
     );
 
+    image_renderer.render_text(
+        "Multiple\nLines",
+        dvec2(32.0, 32.0),
+        anchor2d::CGC,
+        24.0,
+        Srgba::new(1.0, 0.0, 0.0, 1.0),
+    );
+
     image_renderer
         .render_image_onto(image_renderer.black())
         .save("text.png")

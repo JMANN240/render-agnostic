@@ -1,9 +1,12 @@
 use std::f64::consts::{PI, TAU};
 
 use ab_glyph::FontArc;
-use glam::{dvec2, DVec2};
+use glam::{DVec2, dvec2};
 use palette::Srgba;
-use render_agnostic::{Renderer, renderers::image::ImageRenderer};
+use render_agnostic::{
+    Renderer, image_registries::image_image_registry::ImageImageRegistry,
+    renderers::image::ImageRenderer,
+};
 
 fn main() {
     let mut image_renderer = ImageRenderer::new(
@@ -13,6 +16,7 @@ fn main() {
         DVec2::splat(0.5),
         1,
         FontArc::try_from_slice(include_bytes!("roboto.ttf")).unwrap(),
+        ImageImageRegistry::default(),
     );
 
     image_renderer.render_rectangle(

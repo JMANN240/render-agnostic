@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use std::borrow::Borrow;
 
 use anchor2d::{Anchor2D, HorizontalAnchor, VerticalAnchorContext, VerticalAnchorValue};
 use macroquad::prelude::*;
 use palette::Srgba;
 
-use crate::Renderer;
+use crate::{Renderer, image_registries::macroquad_image_registry::MacroquadImageRegistry};
 
 fn srgba_to_color(srgba: Srgba) -> Color {
     Color {
@@ -16,16 +16,16 @@ fn srgba_to_color(srgba: Srgba) -> Color {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct MacroquadRenderer {
+pub struct MacroquadRenderer<R: Borrow<MacroquadImageRegistry>> {
     font: Option<Font>,
-    images: HashMap<String, Texture2D>,
+    image_registry: R,
 }
 
-impl MacroquadRenderer {
-    pub fn new(font: Option<Font>) -> Self {
+impl<R: Borrow<MacroquadImageRegistry>> MacroquadRenderer<R> {
+    pub fn new(font: Option<Font>, image_registry: R) -> Self {
         Self {
             font,
-            images: HashMap::default(),
+            image_registry,
         }
     }
 
@@ -37,12 +37,16 @@ impl MacroquadRenderer {
         self.font = font;
     }
 
-    pub fn register_image(&mut self, image_name: String, image: Texture2D) {
-        self.images.insert(image_name, image);
+    pub fn get_image_registry(&self) -> &R {
+        &self.image_registry
+    }
+
+    pub fn set_image_registry(&mut self, image_registry: R) {
+        self.image_registry = image_registry;
     }
 }
 
-impl Renderer for MacroquadRenderer {
+impl<R: Borrow<MacroquadImageRegistry>> Renderer for MacroquadRenderer<R> {
     fn render_point(&mut self, position: ::glam::DVec2, color: Srgba) {
         draw_rectangle(
             position.x as f32,
@@ -336,7 +340,7 @@ impl Renderer for MacroquadRenderer {
         offset: ::glam::DVec2,
         rotation: f64,
     ) {
-        if let Some(image) = self.images.get(image_name) {
+        if let Some(image) = self.image_registry.borrow().get_image(image_name) {
             draw_texture_ex(
                 image,
                 (position.x - width * offset.x) as f32,

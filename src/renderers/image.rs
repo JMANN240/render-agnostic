@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    borrow::Borrow,
     f64::consts::{FRAC_PI_2, PI},
     iter::once,
 };
@@ -22,7 +22,7 @@ use imageproc::{
 use itertools::Itertools;
 use palette::Srgba;
 
-use crate::Renderer;
+use crate::{Renderer, image_registries::image_image_registry::ImageImageRegistry};
 
 fn srgba_to_rgba8(color: Srgba) -> Rgba<u8> {
     let red = (color.red * 255.0).round().clamp(0.0, 255.0) as u8;
@@ -33,7 +33,7 @@ fn srgba_to_rgba8(color: Srgba) -> Rgba<u8> {
 }
 
 #[derive(Clone)]
-pub struct ImageRenderer {
+pub struct ImageRenderer<R: Borrow<ImageImageRegistry>> {
     virtual_width: u32,
     virtual_height: u32,
     image: RgbaImage,
@@ -41,10 +41,10 @@ pub struct ImageRenderer {
     scaling_target: DVec2,
     supersampling: u32,
     font: FontArc,
-    images: HashMap<String, RgbaImage>,
+    image_registry: R,
 }
 
-impl ImageRenderer {
+impl<R: Borrow<ImageImageRegistry>> ImageRenderer<R> {
     pub fn new(
         width: u32,
         height: u32,
@@ -52,6 +52,7 @@ impl ImageRenderer {
         scaling_target: DVec2,
         supersampling: u32,
         font: FontArc,
+        image_registry: R,
     ) -> Self {
         Self {
             virtual_width: width,
@@ -61,7 +62,7 @@ impl ImageRenderer {
             scaling_target,
             supersampling,
             font,
-            images: HashMap::default(),
+            image_registry,
         }
     }
 
@@ -71,6 +72,14 @@ impl ImageRenderer {
 
     pub fn set_font(&mut self, font: FontArc) {
         self.font = font;
+    }
+
+    pub fn get_image_registry(&self) -> &R {
+        &self.image_registry
+    }
+
+    pub fn set_image_registry(&mut self, image_registry: R) {
+        self.image_registry = image_registry;
     }
 
     fn get_supersampled_width(&self) -> u32 {
@@ -171,10 +180,6 @@ impl ImageRenderer {
             .map(|point| point.round().as_ivec2())
             .unique()
             .collect::<Vec<IVec2>>()
-    }
-
-    pub fn register_image(&mut self, image_name: String, image: RgbaImage) {
-        self.images.insert(image_name, image);
     }
 
     fn render_line(
@@ -281,7 +286,7 @@ impl ImageRenderer {
     }
 }
 
-impl Renderer for ImageRenderer {
+impl<R: Borrow<ImageImageRegistry>> Renderer for ImageRenderer<R> {
     fn render_point(&mut self, position: DVec2, color: Srgba) {
         let position = self.map_dvec2(position);
         let width = self.map_value(1.0);
@@ -356,6 +361,7 @@ impl Renderer for ImageRenderer {
             DVec2::ZERO,
             1,
             self.font.clone(),
+            ImageImageRegistry::default(),
         );
 
         circle_renderer.render_circle(dvec2(radius, radius), radius, color);
@@ -437,6 +443,7 @@ impl Renderer for ImageRenderer {
             DVec2::ZERO,
             1,
             self.font.clone(),
+            ImageImageRegistry::default(),
         );
 
         circle_renderer.render_arc(dvec2(radius, radius), radius, rotation, sides, arc, color);
@@ -590,6 +597,7 @@ impl Renderer for ImageRenderer {
             DVec2::ZERO,
             1,
             self.font.clone(),
+            ImageImageRegistry::default(),
         );
 
         rectangle_renderer.render_rectangle(
@@ -709,6 +717,7 @@ impl Renderer for ImageRenderer {
             DVec2::ZERO,
             1,
             self.font.clone(),
+            ImageImageRegistry::default(),
         );
 
         triangle_renderer.render_equilateral_triangle(
@@ -746,7 +755,7 @@ impl Renderer for ImageRenderer {
         let width = self.map_value(width) - 1.0;
         let height = self.map_value(height) - 1.0;
 
-        if let Some(image) = self.images.get(image_name) {
+        if let Some(image) = self.image_registry.borrow().get_image(image_name) {
             let resized_image = resize(image, width as u32, height as u32, FilterType::Nearest);
             let mut base_image = self.transparent();
             overlay(

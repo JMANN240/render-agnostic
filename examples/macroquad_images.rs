@@ -4,16 +4,20 @@ use macroquad::{
     texture::{Texture2D, load_image},
 };
 use palette::Srgba;
-use render_agnostic::{MacroquadRenderer, Renderer};
+use render_agnostic::{
+    MacroquadRenderer, Renderer, image_registries::macroquad_image_registry::MacroquadImageRegistry,
+};
 
 #[macroquad::main("Images")]
 async fn main() {
-    let mut macroquad_renderer = MacroquadRenderer::new(None);
+    let mut macroquad_image_registry = MacroquadImageRegistry::default();
 
-    macroquad_renderer.register_image(
+    macroquad_image_registry.register_image(
         String::from("beebo"),
         Texture2D::from_image(&load_image("BeeboBall.png").await.unwrap()),
     );
+
+    let mut macroquad_renderer = MacroquadRenderer::new(None, macroquad_image_registry);
 
     loop {
         clear_background(BLACK);
